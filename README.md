@@ -104,4 +104,3 @@ src/main/java/com/claudiopaulo/userapp/
 ## Author
 
 [Claudio Paulo](https://github.com/ClaudioPaulo), software engineer based in Lisbon.
-# spring-boot-auth-template

@@ -182,6 +182,10 @@
 							<goal>check</goal>
 						</goals>
 						<configuration>
+							<excludes>
+								<!-- The main() entry point cannot be exercised by tests -->
+								<exclude>com/claudiopaulo/userapp/UserappApplication.class</exclude>
+							</excludes>
 							<rules>
 								<rule>
 									<element>PACKAGE</element>
