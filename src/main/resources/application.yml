@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: userapp
+
+  # Local development is the default. Set SPRING_PROFILES_ACTIVE=prod in production.
+  profiles:
+    default: dev
+
+  datasource:
+    url: jdbc:h2:mem:userdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: 8080
+
+jwt:
+  # Required. Base64-encoded key of at least 256 bits, e.g.: export JWT_SECRET=$(openssl rand -base64 48)
+  secret: ${JWT_SECRET}
+  expiration: 86400000 # 24 hours in ms
+
+app:
+  version: 1.0.0
+
+# Swagger/OpenAPI is disabled by default and enabled in the dev profile
+springdoc:
+  swagger-ui:
+    enabled: false
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    disable-swagger-default-url: true
+  api-docs:
+    enabled: false
+    path: /v3/api-docs
+  show-actuator: false
+
+logging:
+  level:
+    root: INFO
+    com.claudiopaulo.userapp: INFO

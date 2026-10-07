@@ -1,0 +1,7 @@
+# Production profile: Swagger and H2 console stay disabled (see application.yml).
+# Replace the in-memory H2 datasource with a real database before deploying.
+logging:
+  level:
+    root: WARN
+    com.claudiopaulo.userapp: INFO
+    org.springframework.security: WARN

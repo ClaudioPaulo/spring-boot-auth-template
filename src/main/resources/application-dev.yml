@@ -1,0 +1,18 @@
+# Development profile (default): Swagger UI and H2 console enabled, verbose logging.
+spring:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+springdoc:
+  swagger-ui:
+    enabled: true
+  api-docs:
+    enabled: true
+
+logging:
+  level:
+    com.claudiopaulo.userapp: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
