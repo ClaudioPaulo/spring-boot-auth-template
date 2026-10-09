@@ -5,3 +5,8 @@ logging:
     root: WARN
     com.claudiopaulo.userapp: INFO
     org.springframework.security: WARN
+
+# Behind a trusted reverse proxy, let Spring resolve the real client address
+# (used by the audit log). Do not enable this when clients can reach the app directly.
+# server:
+#   forward-headers-strategy: native

@@ -4,6 +4,8 @@ import com.claudiopaulo.userapp.dto.AuthResponse;
 import com.claudiopaulo.userapp.dto.LoginRequest;
 import com.claudiopaulo.userapp.dto.RegisterRequest;
 import com.claudiopaulo.userapp.entity.User;
+import com.claudiopaulo.userapp.security.ClientIp;
+import com.claudiopaulo.userapp.security.SecurityAuditLogger;
 import com.claudiopaulo.userapp.service.JwtService;
 import com.claudiopaulo.userapp.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -34,6 +37,7 @@ public class AuthController {
     private final UserService userService;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final SecurityAuditLogger auditLogger;
     
     @PostMapping("/register")
     @Operation(
@@ -56,7 +60,7 @@ public class AuthController {
             @Valid @RequestBody RegisterRequest request,
             HttpServletRequest httpRequest) {
         
-        String clientIp = getClientIp(httpRequest);
+        String clientIp = ClientIp.from(httpRequest);
         log.info("Registration attempt for username: {} from IP: {}", request.getUsername(), clientIp);
         
         try {
@@ -71,6 +75,7 @@ public class AuthController {
                 user.getRole().name()
             );
             
+            auditLogger.logRegistration(user.getUsername(), user.getEmail(), clientIp);
             log.info("User registered successfully: {} from IP: {}", user.getUsername(), clientIp);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
             
@@ -87,8 +92,8 @@ public class AuthController {
     )
     @ApiResponses(value = {
         @ApiResponse(
-            responseCode = "201",
-            description = "Login realizado com sucesso",
+            responseCode = "200",
+            description = "Login successful",
             content = @Content(schema = @Schema(implementation = AuthResponse.class))
         ),
         @ApiResponse(
@@ -101,7 +106,7 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest) {
         
-        String clientIp = getClientIp(httpRequest);
+        String clientIp = ClientIp.from(httpRequest);
         log.info("Login attempt for username: {} from IP: {}", request.getUsername(), clientIp);
         
         try {
@@ -120,20 +125,18 @@ public class AuthController {
                 user.getRole().name()
             );
             
+            auditLogger.logLoginAttempt(user.getUsername(), clientIp, true);
             log.info("Login successful for user: {} (Role: {}) from IP: {}", user.getUsername(), user.getRole(), clientIp);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+            return ResponseEntity.ok(response);
             
+        } catch (AuthenticationException e) {
+            auditLogger.logLoginAttempt(request.getUsername(), clientIp, false);
+            log.warn("Login failed for username: {} from IP: {} - Error: {}", request.getUsername(), clientIp, e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.warn("Login failed for username: {} from IP: {} - Error: {}", request.getUsername(), clientIp, e.getMessage());
             throw e;
         }
     }
     
-    private String getClientIp(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-        return request.getRemoteAddr();
-    }
 }

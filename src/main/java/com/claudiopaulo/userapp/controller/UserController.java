@@ -3,6 +3,8 @@ package com.claudiopaulo.userapp.controller;
 import com.claudiopaulo.userapp.dto.RegisterRequest;
 import com.claudiopaulo.userapp.dto.UserResponse;
 import com.claudiopaulo.userapp.entity.User;
+import com.claudiopaulo.userapp.security.ClientIp;
+import com.claudiopaulo.userapp.security.SecurityAuditLogger;
 import com.claudiopaulo.userapp.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -32,6 +35,7 @@ import java.util.List;
 public class UserController {
     
     private final UserService userService;
+    private final SecurityAuditLogger auditLogger;
     
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -162,12 +166,14 @@ public class UserController {
     })
     public ResponseEntity<Void> deleteUser(
             @Parameter(description = "User ID", required = true)
-            @PathVariable Long id) {
+            @PathVariable Long id,
+            HttpServletRequest request) {
         
         String currentUser = getCurrentUsername();
         log.warn("Admin {} attempting to delete user ID: {}", currentUser, id);
         
         userService.deleteUser(id);
+        auditLogger.logUserDeletion(currentUser, id, ClientIp.from(request));
         log.warn("Admin {} successfully deleted user ID: {}", currentUser, id);
         
         return ResponseEntity.noContent().build();

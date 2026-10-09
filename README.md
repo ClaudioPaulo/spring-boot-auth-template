@@ -1,6 +1,6 @@
-# userapp
+# spring-boot-auth-template
 
-User management REST API with JWT authentication and role-based access control, built with Java 17 and Spring Boot 3.
+A Spring Boot 3 starter for JWT authentication and role-based user management, built with Java 17. Clone it, rename the package, and start from a working, tested security setup.
 
 Users register and log in to receive a signed JWT. Every other endpoint requires that token, and access is decided by role (`USER`, `ADMIN`) and by ownership of the account.
 
@@ -10,14 +10,53 @@ Users register and log in to receive a signed JWT. Every other endpoint requires
 - **JWT authentication** (HS256, stateless sessions) through a custom Spring Security filter.
 - **Role-based authorization** with method security: admins manage all users, regular users manage only their own account. Registration always creates a `USER`, so a client can never choose its own role.
 - **Centralized error handling** with consistent JSON error responses.
-- **Security audit logging** for sensitive events, plus structured logging with Logback and a Logstash config.
+- **Logging** with Logback (console and rotating files) and a Logstash pipeline config. A `SecurityAuditLogger` helper is included for login, registration and deletion events.
 - **API documentation** with Swagger UI (OpenAPI 3).
 - **Observability** through Spring Boot Actuator and a Prometheus metrics registry.
-- **Test suite** with unit tests (services, JWT, security rules) and integration tests (controllers, repository, concurrency), plus JaCoCo coverage.
+- **Test suite** with unit tests (services, JWT, security rules) and integration tests (controllers, repository, concurrency), plus a JaCoCo check in CI (70% line coverage on controllers, services and repositories).
 
 ## Tech stack
 
 Java 17, Spring Boot 3.5, Spring Security, Spring Data JPA, JJWT, H2 (in-memory, for development), Lombok, springdoc-openapi, Micrometer + Prometheus, JUnit 5, Maven.
+
+## Architecture
+
+An authenticated request goes through the JWT filter before it reaches a controller. Authorization is decided on the controller method, by role or by ownership of the account.
+
+```mermaid
+flowchart LR
+    Client["Client"] -->|"Authorization: Bearer token"| Filter["JwtAuthenticationFilter<br/>validates the JWT"]
+    Filter -->|"verify signature, expiry"| Jwt["JwtService"]
+    Filter -->|"load user and roles"| UDS["CustomUserDetailsService"]
+    Filter --> Controller["UserController<br/>@PreAuthorize: ADMIN or owner"]
+    Controller --> Service["UserService"]
+    Service --> Repo["UserRepository<br/>Spring Data JPA"]
+    Repo --> DB[("Database")]
+```
+
+Logging in checks the password with BCrypt and issues a signed token:
+
+```mermaid
+sequenceDiagram
+    actor C as Client
+    participant A as AuthController
+    participant M as AuthenticationManager
+    participant U as CustomUserDetailsService
+    participant J as JwtService
+    C->>A: POST /api/auth/login (username, password)
+    A->>M: authenticate
+    M->>U: loadUserByUsername
+    U-->>M: user with encoded password
+    M->>M: BCrypt match
+    alt invalid credentials
+        M-->>A: BadCredentialsException
+        A-->>C: 401 JSON error (GlobalExceptionHandler)
+    else valid credentials
+        A->>J: generateToken(user)
+        J-->>A: signed JWT (HS256, 24 h)
+        A-->>C: token, type, username, email, role
+    end
+```
 
 ## API
 
@@ -45,8 +84,8 @@ Register request:
 **Requirements:** JDK 17+ (Maven is included through the wrapper).
 
 ```bash
-git clone https://github.com/ClaudioPaulo/userapp.git
-cd userapp
+git clone https://github.com/ClaudioPaulo/spring-boot-auth-template.git
+cd spring-boot-auth-template
 
 # Signing key for the JWTs. Use any long random Base64 string.
 export JWT_SECRET=$(openssl rand -base64 48)
@@ -91,12 +130,21 @@ src/main/java/com/claudiopaulo/userapp/
 ├── entity/       # User, Role
 ├── exception/    # global exception handler
 ├── repository/   # Spring Data repositories
-├── security/     # security audit logger
+├── security/     # SecurityAuditLogger
 └── service/      # user service, JWT service, UserDetailsService
 ```
 
+## Using it as a template
+
+Use the **Use this template** button on GitHub (or clone it), then:
+
+1. Rename the package `com.claudiopaulo.userapp` and the artifact in `pom.xml`.
+2. Generate your own `JWT_SECRET` and never commit it.
+3. Replace the in-memory H2 database with PostgreSQL or MySQL in the `prod` profile.
+
 ## Roadmap
 
+- Wire `SecurityAuditLogger` to login, registration and deletion events
 - PostgreSQL support with Flyway migrations
 - Refresh tokens
 - Docker image and Compose file

@@ -1,10 +1,16 @@
 package com.claudiopaulo.userapp.exception;
 
+import com.claudiopaulo.userapp.security.ClientIp;
+import com.claudiopaulo.userapp.security.SecurityAuditLogger;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -19,7 +25,11 @@ import java.util.Map;
 
 @RestControllerAdvice
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final SecurityAuditLogger auditLogger;
+
     
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFound(
@@ -100,7 +110,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
-    public Map<String, String> handleAccessDenied(AccessDeniedException ex) {
+    public Map<String, String> handleAccessDenied(AccessDeniedException ex, HttpServletRequest request) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication != null ? authentication.getName() : "anonymous";
+        auditLogger.logUnauthorizedAccess(username, request.getMethod() + " " + request.getRequestURI(), ClientIp.from(request));
         log.warn("Access denied: {}", ex.getMessage());
         return Map.of("error", "Access denied");
     }
