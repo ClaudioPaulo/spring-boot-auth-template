@@ -1,5 +1,20 @@
-# Production profile: Swagger and H2 console stay disabled (see application.yml).
-# Replace the in-memory H2 datasource with a real database before deploying.
+# Production profile: PostgreSQL with Flyway migrations. Swagger and the H2 console stay disabled.
+# The database settings and JWT_SECRET are required environment variables, there are no defaults.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      # The schema is owned by Flyway (src/main/resources/db/migration); Hibernate only checks it matches.
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+
 logging:
   level:
     root: WARN

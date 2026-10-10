@@ -16,11 +16,16 @@ spring:
     console:
       enabled: false
 
+  # Schema migrations run only in the prod profile (PostgreSQL). Dev and tests use H2 with create-drop.
+  flyway:
+    enabled: false
+
   jpa:
-    database-platform: org.hibernate.dialect.H2Dialect
     hibernate:
       ddl-auto: create-drop
     show-sql: false
+    # Do not keep a database session open while rendering the response (REST API, no views)
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
@@ -54,3 +59,5 @@ logging:
   level:
     root: INFO
     com.claudiopaulo.userapp: INFO
+    # Expected: AuthenticationProvider is declared explicitly, so Spring notes it ignores UserDetailsService beans
+    org.springframework.security.config.annotation.authentication.configuration.InitializeUserDetailsBeanManagerConfigurer: ERROR
