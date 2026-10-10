@@ -10,14 +10,14 @@ Users register and log in to receive a signed JWT. Every other endpoint requires
 - **JWT authentication** (HS256, stateless sessions) through a custom Spring Security filter.
 - **Role-based authorization** with method security: admins manage all users, regular users manage only their own account. Registration always creates a `USER`, so a client can never choose its own role.
 - **Centralized error handling** with consistent JSON error responses.
-- **Logging** with Logback (console and rotating files) and a Logstash pipeline config. A `SecurityAuditLogger` helper is included for login, registration and deletion events.
+- **Logging** with Logback (console and rotating files) and a Logstash pipeline config. A `SecurityAuditLogger` writes `[SECURITY_AUDIT]` entries for logins (successful and failed), registrations, user deletions and denied access, with the client address.
 - **API documentation** with Swagger UI (OpenAPI 3).
 - **Observability** through Spring Boot Actuator and a Prometheus metrics registry.
 - **Test suite** with unit tests (services, JWT, security rules) and integration tests (controllers, repository, concurrency), plus a JaCoCo check in CI (70% line coverage on controllers, services and repositories).
 
 ## Tech stack
 
-Java 17, Spring Boot 3.5, Spring Security, Spring Data JPA, JJWT, H2 (in-memory, for development), Lombok, springdoc-openapi, Micrometer + Prometheus, JUnit 5, Maven.
+Java 17, Spring Boot 3.5, Spring Security, Spring Data JPA, JJWT, PostgreSQL with Flyway (production), H2 (in-memory, development and tests), Docker, Lombok, springdoc-openapi, Micrometer + Prometheus, JUnit 5, Maven.
 
 ## Architecture
 
@@ -43,6 +43,7 @@ sequenceDiagram
     participant M as AuthenticationManager
     participant U as CustomUserDetailsService
     participant J as JwtService
+    participant L as SecurityAuditLogger
     C->>A: POST /api/auth/login (username, password)
     A->>M: authenticate
     M->>U: loadUserByUsername
@@ -50,10 +51,12 @@ sequenceDiagram
     M->>M: BCrypt match
     alt invalid credentials
         M-->>A: BadCredentialsException
+        A->>L: failed login
         A-->>C: 401 JSON error (GlobalExceptionHandler)
     else valid credentials
         A->>J: generateToken(user)
         J-->>A: signed JWT (HS256, 24 h)
+        A->>L: successful login
         A-->>C: token, type, username, email, role
     end
 ```
@@ -110,9 +113,20 @@ curl -X POST localhost:8080/api/auth/login \
   -d '{"username":"jane","password":"a-strong-password"}'
 ```
 
+## Run with Docker
+
+The image uses the `prod` profile: PostgreSQL, schema managed by Flyway, Swagger and the H2 console off.
+
+```bash
+cp .env.example .env       # then set POSTGRES_PASSWORD and JWT_SECRET
+docker compose up --build
+```
+
+The API is on `http://localhost:8080`, and `GET /actuator/health` reports `UP` once PostgreSQL is ready. Try it with the `curl` commands above. Data lives in the `db-data` volume; `docker compose down -v` deletes it.
+
 ## Profiles
 
-`dev` is the default: Swagger UI, the H2 console and verbose logging are enabled. With `SPRING_PROFILES_ACTIVE=prod` they are all off. The app refuses to start without `JWT_SECRET`, so no signing key lives in the repository.
+`dev` is the default: in-memory H2, Swagger UI, the H2 console and verbose logging. With `SPRING_PROFILES_ACTIVE=prod` they are all off, and the app uses PostgreSQL (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`) with Flyway migrations. The app refuses to start without `JWT_SECRET`, so no signing key lives in the repository.
 
 ## Running tests
 
@@ -130,7 +144,7 @@ src/main/java/com/claudiopaulo/userapp/
 ├── entity/       # User, Role
 ├── exception/    # global exception handler
 ├── repository/   # Spring Data repositories
-├── security/     # SecurityAuditLogger
+├── security/     # SecurityAuditLogger, ClientIp
 └── service/      # user service, JWT service, UserDetailsService
 ```
 
@@ -140,14 +154,12 @@ Use the **Use this template** button on GitHub (or clone it), then:
 
 1. Rename the package `com.claudiopaulo.userapp` and the artifact in `pom.xml`.
 2. Generate your own `JWT_SECRET` and never commit it.
-3. Replace the in-memory H2 database with PostgreSQL or MySQL in the `prod` profile.
+3. Add your own tables as new Flyway migrations in `src/main/resources/db/migration` (never edit a migration that has already run).
 
 ## Roadmap
 
-- Wire `SecurityAuditLogger` to login, registration and deletion events
-- PostgreSQL support with Flyway migrations
 - Refresh tokens
-- Docker image and Compose file
+- Testcontainers tests against a real PostgreSQL
 
 ## Author
 
