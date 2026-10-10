@@ -1,5 +1,7 @@
 # spring-boot-auth-template
 
+[![CI](https://github.com/ClaudioPaulo/spring-boot-auth-template/actions/workflows/ci.yml/badge.svg)](https://github.com/ClaudioPaulo/spring-boot-auth-template/actions/workflows/ci.yml)
+
 A Spring Boot 3 starter for JWT authentication and role-based user management, built with Java 17. Clone it, rename the package, and start from a working, tested security setup.
 
 Users register and log in to receive a signed JWT. Every other endpoint requires that token, and access is decided by role (`USER`, `ADMIN`) and by ownership of the account.
