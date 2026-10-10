@@ -52,6 +52,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> {
                 auth.requestMatchers("/api/auth/**").permitAll();
 
+                // Liveness/readiness probe for Docker and orchestrators (exposes only the UP/DOWN status)
+                auth.requestMatchers("/actuator/health", "/actuator/health/**").permitAll();
+
                 if (h2ConsoleEnabled) {
                     auth.requestMatchers("/h2-console/**").permitAll();
                 }
